@@ -1,11 +1,7 @@
-ARG BASE_CONTAINER=jupyter/minimal-notebook
-FROM python:3.9
-FROM $BASE_CONTAINER
-
-USER root
-# Installing geopandas and all it's dependencies
-RUN conda install -c conda-forge movingpandas && \
-    conda clean --all -f -y && \
-    rm -rf /home/$NB_USER/.cache/yarn 
-
-RUN conda install -c conda-forge shapely 
+FROM python:3.7.12
+ENV PYTHONUNBUFFERED 1
+ENV TZ=America/Mexico_City
+COPY . /
+RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+CMD python main.py

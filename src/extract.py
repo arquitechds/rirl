@@ -4,47 +4,76 @@ from bs4 import BeautifulSoup
 from loguru import logger
 import unicodedata
 import pandas as pd
-def get_raw_entries_by_page(page):
+
+
+class rirl_scrapping_session:
     ''' 
-    Extracts all html given a page number
-        input page: page to iterate throw the website
-    
+    Purpose of this class is to reuse same cookies for massive extractions
     '''
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'es-MX,es;q=0.8,en-US;q=0.5,en;q=0.3',
-        # 'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        # 'Cookie': '_ga_XT5D9P1XZZ=GS1.1.1709495574.3.1.1709498582.15.0.0; _ga=GA1.1.886665048.1709169090; XSRF-TOKEN=eyJpdiI6IkxoR1ZVVGJNTHNVTTVKN3RRaStWZVE9PSIsInZhbHVlIjoiaUQzVFJVOTJ2anJiUDlvMkN1OVVqRDd0d0lrOFBDSmxCZjB2MHlIUWliL3Rhb20ybTNFd1YrS3dXb3pxY1Z5UnBQbFVUc3pVWVJMTnRhZEw4RDBNUUQ2Ni9WcmlzcUlwcTgvWTRKMTUzc2tvMVlsOEx2Q0hSMzZWMWgwaWxHWTciLCJtYWMiOiJhMWY0ZDk2ZDY5NmNkNzQ0M2U4NWIxNDMxNDI5OTgzNDQ0Y2RhNzM3OTQxN2ExOTA1NmE5MzAxZjAxOGZiOGYzIiwidGFnIjoiIn0%3D; repositorio_session=eyJpdiI6IjdTS0l2TTV6bTAxK01HSGFCNHkrQVE9PSIsInZhbHVlIjoiemVsRm5ROXBCcWYrdDcvSFdKQVpsdEY0My9PQTZ5U0FBL0o5MUtUVE8rYkM0QUIzclBVNXJXS3Q0MVYybUc1VFUvZmVEbVBLcVNXQWxUSEM5K1Rtd2xBeU5GQ3BYc0xONmFCeGp6RHpFT1pEY0MvTVlMNWhPNXhpMk4yR2F5Qk4iLCJtYWMiOiI5YTQ1ZDcxMzE4YTgzNTNiZjMyMzU5NDgzYjNlODRiZmZhNjc0Y2UzN2U3YThmNDJlM2ExZGE5ZDhmMDBhYzE3IiwidGFnIjoiIn0%3D; avisoprivacidad=true; informativohistorico=true; XSRF-TOKEN=eyJpdiI6InI0U1Ewamo5bGwzREJFR3pWNU1HZmc9PSIsInZhbHVlIjoiakVFbi9yeU9NNXRGRERlb1M1Ky82MVZiZ0MzL05QMVZLNDNDOVJZUmxzc1piY0t2L3BSYkxPeENIdGxKVS80aHlCN3d4OTVjS3FyOVRTVlIxZ2xmUjYxdEQwZkl5QkF3YmpPL0tOYzZqQm8yajgrWGRxMTdmZFZWdnRJRGpSRE8iLCJtYWMiOiJiZmIxNTQyZjY4YWQ3ZjA1NTYyMWZkZWE3NDFiOGQ3NjQ3MTdiNjJiMTA0MGVlYzE5MjJmYzYxNzVhY2JkOTYwIiwidGFnIjoiIn0%3D; repositorio_session=eyJpdiI6Im9oNWFRdDVRV2grcnZuZWQyMlJlb2c9PSIsInZhbHVlIjoiWTh0RGl3UDRHdjJidkNkYnJueVRqOU1CeFpGelc1NExPM1pCSHdSSldyUVZhNTBvOFBhTldKcmVxS050RnVLZjQ1QVc2aFNrd2ptRWxKSytmd1BVck1sNjFHYmRMOFRxMnM0eTdKdWZnTU1aOEJTSU9mazZ5ZkNZTzl4M2VpZ3IiLCJtYWMiOiJiZDMwMzJkOTg2NWQzMGVlYjFkNTQwMWVlMmQ5NmFlZDI2ZmRlNjY0YTgzMmJmZDU5MjE4Yzk4NDE0NWE3ZDc2IiwidGFnIjoiIn0%3D',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-    }
-
-    params = {
-        'cont': str(page),
-        'reg': str(page),
-        'asoc':str(page)
-    }
-    cookies = {
-        '_ga_XT5D9P1XZZ': 'GS1.1.1710045020.10.1.1710045042.38.0.0',
-        '_ga': 'GA1.1.886665048.1709169090',
-        'XSRF-TOKEN': 'eyJpdiI6IlR6SlNrdEt1NzZ6STJQNUFQMFB4ZXc9PSIsInZhbHVlIjoidE1kTk9WZXg5eWVXWEdIbnNTUlBic1J6anFsdDQrb3VlSXE1eHRvS2hWYmFYSElyR2VzQmNIWExKaTlDUmRkSzhUOGFRZm5ISS81TUE1bjkrNTNYWWpMSU0wV2Q0SVZ6RDdMZFZwY2xuek5TUHRDaXVGN2V3NURFQm9rZnZFY3kiLCJtYWMiOiJhMDRjZTlhYWNmNTk3YmJmMjQwOWU5MDE1YTZkYjI1MGUxZGI4OTliYmM0MzA5ODFkZjYxZDRiYTlkZDU0ZTgwIiwidGFnIjoiIn0%3D',
-        'repositorio_session': 'eyJpdiI6Imp1eFdzK0kxTnhYTmhIK2hxcWR3TWc9PSIsInZhbHVlIjoiWURBUkVpNzZVaExqMy9GSTN0ajR5eWJwRFpsdjMxb3FNazZ5UXRtTW5Lb0liN3VQUi9IOHdwMDF0THNjWjZ2dnVtSUpBc0FteFFSaVBpUDl5WmhKNjh0WmhTb2M5MERQa2lvQS84cWM2VVJIU0h5c3lnWnR0VXdacjc5aVFydmkiLCJtYWMiOiJjZjAyMWM0MzRiYmI1N2M4YTZkZGEyMjkzNGE1ZDBiNGU2ODc3MGUwYzljOTQ1MzE1NjA2NTlhNmRjZmVmZDI0IiwidGFnIjoiIn0%3D',
-        'avisoprivacidad': 'false',
-    }
-
-    response = requests.get('https://repositorio.centrolaboral.gob.mx/', params=params, cookies=cookies, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    logger.info(f'Extracted page {page}')
-    return soup
+    def __init__(self):
+        self.cookies = self.get_cookies()
+        self.cookies2  = {
+    'XSRF-TOKEN': 'eyJpdiI6IitmS0VEWEhsOGx2YUk2aGQvMVdvTEE9PSIsInZhbHVlIjoiSUpIdWd5NExhV1VCRmpzaFo2bFk2aFRvcURTUWpuQXpHSlhLV3o0L0tzRXhRc0k5bEdLQk5IWnRqQThrenUzSnFLSlJha0RSUnBRMHUwQVhxQjdEVFArMlh2T0xEZ0s0aXY3OEdUbmtSOGFFcDRMMlZ5ZHR6SlptYlZ6QWc3T08iLCJtYWMiOiJhMTU2MzhhNzM5YTI2MWFkM2RjYjk5Mzc5M2JmNjNhZDZhYTJjOWJhODZjMzcwNmFiMWI1Mzk0ZjE3OGRkYTlmIiwidGFnIjoiIn0%3D',
+    'repositorio_session': 'eyJpdiI6ImU4bnNqbHpDM0grUHdXWEVOeDF3bnc9PSIsInZhbHVlIjoiOXEzOXdmZ3NJYjRFMnVXbFFLc1dVemMxNzVpYmxoc1BPK2hoaE0wdXliZkZQU3ZxU2JOV3FUWEZaK3l0YzYxTDRGaG1UWXR4YUI4dGZwbGpCaEMrUEtmTkhwYkw5ekhPRlI4M0lrZWFHSVlOcG9LRVhZN25FZ0NXc05rNkVxa2ciLCJtYWMiOiIyYmUzMWIzZWVhYTMyNmU3ZGE3NzM5YmMxMzM1MmY2NGRlYzJjOTExMjlkOWFjMGM4OTJiMzBmODIxN2QxNjExIiwidGFnIjoiIn0%3D',
+}
 
 
+    def get_cookies(self):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-MX,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+        }
 
-### Extract functions
+        response = requests.get('https://repositorio.centrolaboral.gob.mx/', headers= headers)
+        cookies =  response.cookies.get_dict() 
+        aviso =    { 'avisoprivacidad': 'true'}
+        cookies = {**cookies, **aviso}
+        return cookies
+
+    def get_raw_entries_by_page(self, page):
+        ''' 
+        Extracts all html given a page number
+            input page: page to iterate throw the website
+        
+        '''
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-MX,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Connection': 'keep-alive',
+            'DNT': '1',
+            'Sec-GPC': '1',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+        }
+
+        params = {
+            'cont': str(page),
+            'reg': str(page),
+            'asoc':str(page)
+        }
+
+        response = requests.get('https://repositorio.centrolaboral.gob.mx/', params=params, cookies=self.cookies2, headers=headers)
+        soup = BeautifulSoup(response.text, "html.parser")
+        logger.info(f'Extracted page {page}')
+        return soup
+
+
+
+##########################################
+# check_new_urls_for_control_tables 
+##########################################
+
 
 
 def get_reglamento_entry_data(entry):
@@ -185,7 +214,10 @@ def extract_all_entries(soup):
 
 
 
-### EXTRACT all data!
+##########################################
+# metadata!
+##########################################
+
 def get_soup(url):
     ''' 
     Extracts all html given a page number
@@ -206,16 +238,23 @@ def get_soup(url):
         'Sec-Fetch-User': '?1',
     }
 
-
     response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    logger.info(f'Extracted page')
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        logger.info(f'Extracted page')
+    else:
+        soup = None
+        logger.info(f'{url} was empty')
     return soup
+
 
 def clean_txt(input_str):
     input_str = input_str.replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u')
     input_str = input_str.replace(' ','_').replace(':','').lower().strip().replace('__','').replace('\n','')
+    #input_str = input_str.strip()#.replace('__','').replace('\n','')
     return input_str
+
 
 def get_metadata(soup,url_prefix):
     values = []
@@ -223,21 +262,72 @@ def get_metadata(soup,url_prefix):
     for entry in soup.find_all('div' , class_="dato-extra"):
         if entry.find('b') == None:
             break
-        key = clean_txt(entry.find('b').text.replace('(','').replace(')',''))
+        key = clean_txt(entry.find('b').text.replace('(','').replace(')','')).replace('_|_','')
+        if key in keys:
+            break
         try: 
-            value = clean_txt(entry.find('li').text)
+            #value = clean_txt(entry.find('li').text)
+            value = entry.find('li').text.strip()
         except:
             try:
-                value = clean_txt(entry.find('span').text)
+                #value = clean_txt(entry.find('span').text)
+                value = entry.find('span').text.strip()
 
             except:
-                value = None
+                #value = None
+                #value = clean_txt(soup.find_all('div' , class_="dato-extra")[-1].find('span').text)
+                value = soup.find_all('div' , class_="dato-extra")[-1].find('span').text.strip()
 
         values = values + [value]
         keys = keys + [key]
 
     dictionary = dict(map(lambda key, value: (key, value), keys, values))
     dictionary['url'] = url_prefix
+    dictionary['url_active'] = 1
+    return dictionary
+
+def get_metadata_2(soup,url_prefix):
+    '''
+    Extract function design for revision salarial
+    '''
+    values = []
+    keys = []
+    for entry in soup.find_all('div' , class_="dato-extra"):
+        if entry.find('b') == None:
+            break
+        key = clean_txt(entry.find('b').text.replace('(','').replace(')','')).replace('_|_','')
+        try: 
+            #value = clean_txt(entry.find('li').text)
+            value = entry.find('li').text.strip()
+        except:
+            try:
+                #value = clean_txt(entry.find('span').text)
+                value = entry.find('span').text.strip()
+
+            except:
+                #value = None
+                #value = clean_txt(soup.find_all('div' , class_="dato-extra")[-1].find('span').text)
+                value = soup.find_all('div' , class_="dato-extra")[-1].find('span').text.strip()
+
+        values = values + [value]
+        keys = keys + [key]
+
+    dictionary = dict(map(lambda key, value: (key, value), keys, values))
+    dictionary['url'] = url_prefix
+    dictionary['url_active'] = 1
+    return dictionary
+
+
+
+def get_metadata_reglamento(soup):
+    soup_reglamento = soup.find_all('div', class_='detalle-informacion-seccion')[1]
+    keys = []
+    for i in soup_reglamento.find_all('th'):
+        keys = keys + [clean_txt(i.text).strip()]
+    values = []
+    for i in soup_reglamento.find_all('td'):
+        values = values + [i.text.strip()]
+    dictionary = dict(map(lambda key, value: (key, value), keys, values))
     return dictionary
 
 def chunks(l, n):
@@ -247,21 +337,66 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
-def get_tramites_urls(soup,url_prefix):
-    types = []
-    urls = []
-    for entry in soup.find_all('div', class_ = 'document-group-item'):
-        types = types + [clean_txt(entry.find('span').text)]
-        urls = urls + [entry.find('a')['href']]
-    df = pd.DataFrame([urls,types]).T
-    df.columns = ['file_url', 'type']
-    df['source'] = 'tramites_urls'
-    df['id_url'] = url_prefix
-    df['is_active'] = 0
+def get_tramites_urls(soup, file_id,contrato_type):
+    try:
+        types = []
+        urls = []
+        for entry in soup.find_all('div', class_ = 'document-group-item'):
+            types = types + [clean_txt(entry.find('span').text)]
+            urls = urls + [entry.find('a')['href']]
+        df = pd.DataFrame([urls,types]).T
+        df.columns = ['file_url', 'type']
+        df['file_id'] = file_id
+        df['contrato_type'] = contrato_type
+        df['source'] = 'tramites'
+        df['url_active'] = 1
+        df['in_s3'] = 0
+        df['s3_uri'] = ''
+        tramites_urls = df.to_dict('records')
+    except:
+        tramites_urls = []
 
-    tramites_urls = df.to_dict('records')
 
     return tramites_urls
+
+def get_reglamento_urls(soup,file_id):
+    try:
+        types = []
+        urls = []
+        for entry in soup.find_all('a', class_ = 'data-tracking-document'):
+            types = types + [entry['data-ga-type'].strip()]
+            urls = urls + [entry['href']]
+        df = pd.DataFrame([urls,types]).T
+        df.columns = ['file_url', 'type']
+        df['file_id'] = file_id
+        df['source'] = 'info_general'
+        df['url_active'] = 1
+        df['in_s3'] = 0
+        df['s3_uri'] = ''
+        tramites_urls = df.to_dict('records')
+    except:
+        tramites_urls = []
+    return tramites_urls
+
+def get_asoc_urls(soup,file_id):
+    try:
+        types = []
+        urls = []
+        for entry in soup.find_all('a', class_ = 'data-tracking-document'):
+            types = types + [clean_txt(entry['data-ga-type'])]
+            urls = urls + [entry['href']]
+        df = pd.DataFrame([urls,types]).T
+        df.columns = ['file_url', 'type']
+        df['file_id'] = file_id
+        df['source'] = 'asociaciones'
+        df['url_active'] = 1
+        df['in_s3'] = 0
+        df['s3_uri'] = ''
+        tramites_urls = df.to_dict('records')
+    except:
+        tramites_urls = []
+    return tramites_urls
+
 
 def related_asocs(asociacion_soup):
     table = asociacion_soup.find('table')
@@ -274,40 +409,71 @@ def related_asocs(asociacion_soup):
     related_asoc = df.to_dict('records')
     return related_asoc
 
-def get_expedientes_urls(tramites_relacionados,url_prefix):
-    table = tramites_relacionados.find('table')
-    if table == None:
-        return []
-    values = []
-    for entry in table.find_all('td'):
-        values = values + [clean_txt(entry.text)]
-    df = pd.DataFrame(list(chunks(values, 5)))
-    df.columns = ['file_url','type','date','size','button']
-    df  = df[['file_url','type']]
-    df['source'] = 'expedientes_urls'
-    df['id_url'] = url_prefix
-    df['is_active'] = '0'
-    related_expedientes = df.to_dict('records')
+
+def get_expedientes_urls(tramites_relacionados,file_id,contrato_type):
+    try:
+        table = tramites_relacionados.find('table')
+        if table == None:
+            return []
+        values = []
+        for entry in table.find_all('td'):
+            values = values + [entry.text.strip()]
+        df = pd.DataFrame(list(chunks(values, 5)))
+        df.columns = ['file_url','type','date','size','button']
+        df  = df[['file_url','type']]
+        df['file_id'] = file_id
+        df['contrato_type'] = contrato_type
+        df['source'] = 'expedientes'
+        df['url_active'] = '1'
+        df['in_s3'] = '0'
+        df['s3_uri'] = ''
+        df['file_url'] =  'https://repositorio.centrolaboral.gob.mx/storage/antecedentes/' + df['file_url']
+
+        related_expedientes = df.to_dict('records')
+    except:
+        related_expedientes = []
+
     return related_expedientes
 
+def get_empresas(soup,file_id,contrato_type):
+    ''' 
+    Extract table of empresas
+    '''
+    try:
+        table = soup.find('table')
+        if table == None:
+            return []
+        values = []
+        for entry in table.find_all('td'):
+            values = values + [entry.text.strip()]
+        df = pd.DataFrame(list(chunks(values, 4)))
+        df.columns = ['nombre','rfc','domicilio','actividad']
+        df['file_id'] = file_id
+        df['relation_to'] = contrato_type
+        df['id'] = file_id + ' - ' + df['nombre']
+        empresas = df.to_dict('records')
+    except:
+        empresas = []
+    return empresas
 
-def get_data(url_prefix):
+
+
+def get_data_contratos(url_prefix):
     url = 'https://repositorio.centrolaboral.gob.mx'+ url_prefix
     soup = get_soup(url)
+    if soup is not None:
+        informacion_general_soup = soup.find_all('div', class_='detalle-informacion-seccion')[0]
+        tramites_relacionados_soup = soup.find_all('div', class_='detalle-informacion-seccion')[1]
+        #asociacion = soup.find_all('div', class_='detalle-informacion-seccion')[2]
+        informacion_general = get_metadata(informacion_general_soup,url_prefix)
+        tramites_relacionados = get_metadata(tramites_relacionados_soup,url_prefix)
+        data = {**tramites_relacionados,**informacion_general}
+    else:
+        data = {}
 
-    informacion_general = soup.find_all('div', class_='detalle-informacion-seccion')[0]
-    tramites_relacionados = soup.find_all('div', class_='detalle-informacion-seccion')[1]
-    #asociacion = soup.find_all('div', class_='detalle-informacion-seccion')[2]
-    tramites_urls =  get_tramites_urls(tramites_relacionados,url_prefix)
-    expedientes_urls = get_expedientes_urls(tramites_relacionados,url_prefix)
-    urls = tramites_urls + expedientes_urls
-    informacion_general = get_metadata(informacion_general,url_prefix)
-    tramites_relacionados = get_metadata(tramites_relacionados,url_prefix)
-    
-    data = {**informacion_general, **tramites_relacionados}
     #related_asocs_dict = related_asocs(asociacion)
 
-    keys = ['autoridad_que_genero_el_registro',
+    keys_alive_contracts = ['autoridad_que_genero_el_registro',
     'empresa_o_persona_empleadora',
     'entidad_federativa_de_origen',
     'entidades',
@@ -324,19 +490,213 @@ def get_data(url_prefix):
     'ramas_economicas_de_la_industria',
     'resultado_de_la_legitimacion',
     'rfc_de_la_empresa',
-    'url']
+    'url',
+    'url_active']
 
-    if set(keys) == set(data.keys()):
+    keys_historic_contracts = ['numero_de_registro', 
+            'numero_de_expediente', 
+            'nombre_del_patron', 
+            'entidad_federativa_de_origen', 
+            'autoridad_que_genero_el_registro', 
+            'nombre_de_la_asociacion', 
+            'url', 
+            'folio_del_tramite', 
+            'fecha_de_constitucion', 
+            'fecha_de_registro', 
+            'secretarioa_general_u_homologo', 
+            'tipo_documental', 
+            'numero_de_personas_afiliadas', 
+            'federacion_o_confederacion', 
+            'federacion', 
+            'confederacion', 
+            'vigencia_de_la_directiva', 
+            'fecha_de_la_ultima_toma_de_nota', 
+            'domicilios',
+    'url_active']
+
+    keys_deposito_inicial =  ['folio_del_tramite',
+    'fecha_de_resolucion',
+    'numero_de_expediente',
+    'tipo_de_contrato',
+    'jurisdiccion',
+    'estado_de_la_jurisdiccion',
+    'personas_trabajadoras_con_derecho_a_voto',
+    'ámbito_de_aplicacion',
+    'url',
+    'url_active',
+    'numero_de_registro',
+    'nombre_del_patron',
+    'patron,_empresas_o_establecimientos',
+    'nombre_de_persona_empleadora',
+    'entidad_federativa_de_origen',
+    'autoridad_que_genero_el_registro',
+    'estados_vinculados_a_la_jurisdiccion',
+    'fecha_de_presentacion',
+    'nombre_de_la_asociacion',
+    'personas_trabajadoras_cubiertas_por_el_contrato',
+    'duracion_del_contrato',
+    'fecha_de_ultima_revision_salarial',
+    'fecha_de_terminacion_del_contrato',
+    'fecha_de_legitimacion']
+    
+    
+    revision_salarial_filter_1 = ['folio_del_tramite',
+    'numero_de_expediente',
+    'fecha_de_resolucion',
+    'nombre_del_patron',
+    'nombre_de_la_asociacion',
+    'numero_de_expediente_de_la_asociacion',
+    'numero_de_registro_de_la_asociacion',
+    'url',
+    'url_active',
+    'numero_de_registro']
+    
+    if set(keys_alive_contracts) == set(data.keys()):
+        logger.info('Alive contract detected')
         logger.info('Correct columns!')
+        table = 'metadata.contratos_vigentes'
+        contrato_type = 'contrato vigente'
+        data['id'] = data['numero_de_contrato']
+        empresas = []
+
+
+
+    elif set(keys_historic_contracts) <= set(data.keys()):
+        logger.info('Historic contract detected')
+        logger.info('Correct columns!')
+        table = 'metadata.contratos_historicos'
+        contrato_type = 'contrato historico'
+        data['id'] = data['numero_de_registro']
+        data.pop('fecha_de_ultima_revision', None)
+
+        empresas = []
+
+
+    elif set(keys_deposito_inicial) == set(data.keys()):
+        logger.info('Deposito inicial contract detected')
+        logger.info('Correct columns!')
+        data['ambito_de_aplicacion'] = data.pop('ámbito_de_aplicacion')
+        data['patron_empresas_o_establecimientos'] = data.pop('patron,_empresas_o_establecimientos')
+        table = 'metadata.contratos_deposito_inicial'
+        contrato_type = 'contrato deposito_inicial'
+        data['id'] = data['numero_de_expediente']
+        empresas = get_empresas(soup,data['id'],contrato_type)
+
+    elif set(revision_salarial_filter_1) == set(data.keys()):
+        logger.info('Revision salarial contract detected')
+        informacion_general = get_metadata_2(informacion_general_soup,url_prefix)
+        tramites_relacionados = get_metadata(tramites_relacionados_soup,url_prefix)
+        data = {**tramites_relacionados,**informacion_general}
+        table = 'metadata.contratos_revision_salarial'
+        contrato_type = 'contrato revision_salarial'
+        data['id'] = data['folio_del_tramite']
+        empresas = []
+
+
     else: 
         logger.info('Incorrect columns')
         logger.info(url_prefix)
         data = []
         urls = []
-    return data,urls
+        table = None
+
+    # extract urls
+    tramites_urls =  get_tramites_urls(tramites_relacionados_soup,data['id'],contrato_type)
+    expedientes_urls = get_expedientes_urls(tramites_relacionados_soup,data['id'],contrato_type)
+    urls = tramites_urls + expedientes_urls
+    return data,urls,empresas, table
 
 
 
 
+def get_data_reglamentos(url_prefix):
+    url = 'https://repositorio.centrolaboral.gob.mx'+ url_prefix
+    soup = get_soup(url)
+    if soup is not None:
+        informacion_general_soup = soup.find_all('div', class_='detalle-informacion-seccion')[0]
+        tramites_relacionados_soup = soup.find_all('div', class_='detalle-informacion-seccion')[1]
+        #asociacion = soup.find_all('div', class_='detalle-informacion-seccion')[2]
+        informacion_general = get_metadata(informacion_general_soup,url_prefix)
+        #tramites_relacionados = get_metadata_reglamento(soup)
+        contrato = soup.find_all('h2', class_='titulo')[0].text.strip()
+        informacion_general['numero_de_expediente'] = contrato
+        expediente = informacion_general['numero_de_expediente']
+        urls = get_reglamento_urls(soup,contrato)
+        data = informacion_general
+        empresas = get_empresas(soup,expediente,'reglamento')
+    else:
+        data = {}
 
 
+    keys_reglamento = [
+    'numero_de_expediente',
+    'nombre_de_la_asociacion',
+    'numero_de_registro_de_asociacion',
+    'entidad_federativa_de_origen',
+    'autoridad_que_genero_el_registro',
+    'jurisdiccion',
+    'estados_vinculados_a_la_jurisdiccion',
+    'fecha_de_registro',
+    'fecha_de_ultima_modificacion',
+    'url',
+    'url_active']
+
+    if set(keys_reglamento) == set(data.keys()):
+        logger.info('Reglamento detected')
+        logger.info('Correct columns!')
+        table = 'metadata.reglamentos'
+        data['id'] = data['numero_de_expediente']
+
+    else: 
+        logger.info('Incorrect columns')
+        logger.info(url_prefix)
+        data = []
+        urls = []
+        table = None
+
+    return data,urls, empresas, table
+
+def get_data_asociaciones(url_prefix):
+    url = 'https://repositorio.centrolaboral.gob.mx'+ url_prefix
+    soup = get_soup(url)
+    if soup is not None:
+        informacion_general_soup = soup.find_all('div', class_='detalle-informacion-seccion')[0]
+        nombre = soup.find_all('li',class_='breadcrumb-item')[-1].find_all('span')[0].text.strip()
+        data = get_metadata(soup,url_prefix)
+        data['nombre'] = nombre
+
+    else:
+        data = {}
+
+    keys_asoc_basic = ['nombre',
+        'numero_de_registro',
+    'numero_de_expediente',
+    'entidad_federativa_de_origen',
+    'autoridad_que_genero_el_registro',
+    'folio_unico',
+    'fecha_de_constitucion',
+    'secretarioa_general_u_homologo',
+    'url',
+    'url_active']
+
+
+
+   # if set(keys_asoc_basic) in set(data.keys()):
+    if  set(keys_asoc_basic).issubset(set(data.keys())):
+
+        data = {key: data[key] for key in keys_asoc_basic}
+        logger.info('Asoc detected')
+        logger.info('Correct columns!')
+        table = 'metadata.asociaciones'
+        data['id'] = data['nombre']
+        urls =  get_asoc_urls(soup,data['id'])
+
+    else: 
+        logger.info('Incorrect columns')
+        logger.info(url_prefix)
+        data = []
+        urls = []
+        table = None
+
+    empresas = []
+    return data,urls, empresas, table

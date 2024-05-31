@@ -20,7 +20,7 @@ def get_retail_db_connection():
         host=os.environ["DB_HOST"],
         user=os.environ["DB_USER"],
         password=os.environ["DB_PASSWORD"],
-        db=os.environ["DB_NAME"]
+        #db=os.environ["DB_NAME"]
     )
     logger.info('Succesful connection')
     return retrieve_db

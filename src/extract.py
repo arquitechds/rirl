@@ -263,8 +263,8 @@ def get_metadata(soup,url_prefix):
         if entry.find('b') == None:
             break
         key = clean_txt(entry.find('b').text.replace('(','').replace(')','')).replace('_|_','')
-        if key in keys:
-            break
+        #if key in keys:
+        #    break
         try: 
             #value = clean_txt(entry.find('li').text)
             value = entry.find('li').text.strip()
@@ -550,18 +550,15 @@ def get_data_contratos(url_prefix):
     'url',
     'url_active',
     'numero_de_registro']
-    
-    if set(keys_alive_contracts) == set(data.keys()):
-        logger.info('Alive contract detected')
-        logger.info('Correct columns!')
-        table = 'metadata.contratos_vigentes'
-        contrato_type = 'contrato vigente'
-        data['id'] = data['numero_de_contrato']
-        empresas = []
 
 
+    if set(keys_historic_contracts)- set(data.keys()) == {'domicilios'}:
+        data['domicilios'] = 'na'
 
-    elif set(keys_historic_contracts) <= set(data.keys()):
+    if set(keys_historic_contracts)- set(data.keys()) == {'nombre_de_persona_empleadora'}:
+        data['nombre_de_persona_empleadora'] = 'na'
+
+    if set(keys_historic_contracts) <= set(data.keys()):
         logger.info('Historic contract detected')
         logger.info('Correct columns!')
         table = 'metadata.contratos_historicos'
@@ -570,6 +567,15 @@ def get_data_contratos(url_prefix):
         data.pop('fecha_de_ultima_revision', None)
 
         empresas = []
+
+    elif set(keys_alive_contracts) == set(data.keys()):
+        logger.info('Alive contract detected')
+        logger.info('Correct columns!')
+        table = 'metadata.contratos_vigentes'
+        contrato_type = 'contrato vigente'
+        data['id'] = data['numero_de_contrato']
+        empresas = []
+
 
 
     elif set(keys_deposito_inicial) == set(data.keys()):

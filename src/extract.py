@@ -265,9 +265,17 @@ def get_metadata(soup,url_prefix):
         key = clean_txt(entry.find('b').text.replace('(','').replace(')','')).replace('_|_','')
         #if key in keys:
         #    break
-        try: 
-            #value = clean_txt(entry.find('li').text)
-            value = entry.find('li').text.strip()
+        try:
+            if len(entry.find_all('li')) > 1:
+                value = []
+                for j in entry.find_all('li'):
+                    value_n = j.text.strip()
+                    value = value + [value_n]
+                value = " | ".join(str(x) for x in value)
+
+            else:
+                #value = clean_txt(entry.find('li').text)
+                value = entry.find('li').text.strip()
         except:
             try:
                 #value = clean_txt(entry.find('span').text)
@@ -457,6 +465,25 @@ def get_empresas(soup,file_id,contrato_type):
     return empresas
 
 
+def compare_dicts(dict_a, dict_b):
+    keys_a = set(dict_a.keys())
+    keys_b = set(dict_b.keys())
+    intersect = keys_a.intersection(keys_b)
+    
+    for key in intersect:
+        # caso 1 uno es diferente
+        if dict_a[key] == 'No disponible' and dict_b[key] != 'No disponible':
+            del dict_a[key]
+        elif dict_a[key] != 'No disponible' and dict_b[key] == 'No disponible':
+            del dict_b[key]
+    return dict_a,dict_b
+        
+        # caso 2, ambos estan disponibles
+
+
+
+
+
 
 def get_data_contratos(url_prefix):
     url = 'https://repositorio.centrolaboral.gob.mx'+ url_prefix
@@ -467,6 +494,7 @@ def get_data_contratos(url_prefix):
         #asociacion = soup.find_all('div', class_='detalle-informacion-seccion')[2]
         informacion_general = get_metadata(informacion_general_soup,url_prefix)
         tramites_relacionados = get_metadata(tramites_relacionados_soup,url_prefix)
+        tramites_relacionados, informacion_general = compare_dicts(tramites_relacionados, informacion_general)
         data = {**tramites_relacionados,**informacion_general}
     else:
         data = {}
@@ -512,7 +540,8 @@ def get_data_contratos(url_prefix):
             'vigencia_de_la_directiva', 
             'fecha_de_la_ultima_toma_de_nota', 
             'domicilios',
-    'url_active']
+    'url_active',
+    'fecha_de_ultima_revision']
 
     keys_deposito_inicial =  ['folio_del_tramite',
     'fecha_de_resolucion',
@@ -537,7 +566,8 @@ def get_data_contratos(url_prefix):
     'duracion_del_contrato',
     'fecha_de_ultima_revision_salarial',
     'fecha_de_terminacion_del_contrato',
-    'fecha_de_legitimacion']
+    'fecha_de_legitimacion',
+    'domicilio_donde_se_desarrolla_la_actividad']
     
     
     revision_salarial_filter_1 = ['folio_del_tramite',
@@ -551,24 +581,42 @@ def get_data_contratos(url_prefix):
     'url_active',
     'numero_de_registro']
 
+    revision_salarial= ['folio_del_tramite',
+    'numero_de_expediente',
+    'fecha_de_resolucion',
+    'nombre_del_patron',
+    'nombre_de_la_asociacion',
+    'numero_de_expediente_de_la_asociacion',
+    'numero_de_registro_de_la_asociacion',
+    'url',
+    'url_active',
+    'numero_de_registro',
+    'nombre_de_persona_empleadora',
+    'entidad_feredativa_de_origen',
+    'autoridad_que_genero_el_registro',
+    'fecha_de_presentacion']
 
-    if set(keys_historic_contracts)- set(data.keys()) == {'domicilios'}:
-        data['domicilios'] = 'na'
+    terminacion  = ['folio_del_tramite',
+        'fecha_de_resolucion',
+        'numero_de_expediente',
+        'nombre_de_persona_empleadora',
+        'nombre_de_la_asociacion',
+        'numero_de_expediente_de_la_asociacion',
+        'numero_de_registro_de_la_asociacion',
+        'fechas,_horas_y_lugares_de_votacion',
+        'url',
+        'url_active',
+        'numero_de_registro',
+        'nombre_del_patron',
+        'entidad_federativa_de_origen',
+        'autoridad_que_genero_el_registro',
+        'fecha_de_presentacion']
+ 
+    if find_similarity(set(keys_alive_contracts),set(data.keys())) > .8:
+        logger.info('Alive contract detected')
+        if  set(keys_alive_contracts) > set(data.keys()):
+            data = {**data,**complete_keys(keys_alive_contracts,data.keys() )}
 
-    if set(keys_historic_contracts)- set(data.keys()) == {'nombre_de_persona_empleadora'}:
-        data['nombre_de_persona_empleadora'] = 'na'
-
-    if set(keys_historic_contracts) <= set(data.keys()):
-        logger.info('Historic contract detected')
-        logger.info('Correct columns!')
-        table = 'metadata.contratos_historicos'
-        contrato_type = 'contrato historico'
-        data['id'] = data['numero_de_registro']
-        data.pop('fecha_de_ultima_revision', None)
-
-        empresas = []
-
-    elif set(keys_alive_contracts) == set(data.keys()):
         logger.info('Alive contract detected')
         logger.info('Correct columns!')
         table = 'metadata.contratos_vigentes'
@@ -576,9 +624,23 @@ def get_data_contratos(url_prefix):
         data['id'] = data['numero_de_contrato']
         empresas = []
 
+    elif find_similarity(set(keys_historic_contracts),set(data.keys())) > .8:
+        logger.info('Historic contract detected')
+        if  set(keys_alive_contracts) > set(data.keys()):
+            data = {**data,**complete_keys(keys_historic_contracts,data.keys() )}
+        logger.info('Correct columns!')
+        table = 'metadata.contratos_historicos'
+        contrato_type = 'contrato historico'
+        data['id'] = data['numero_de_registro']
+        empresas = []
 
 
-    elif set(keys_deposito_inicial) == set(data.keys()):
+
+
+    elif find_similarity(set(keys_deposito_inicial),set(data.keys())) > .8:
+        logger.info('Deposito inicial contract detected')
+        if set(keys_deposito_inicial) <= set(data.keys()):
+            data = {**data,**complete_keys(keys_deposito_inicial,data.keys() )}
         logger.info('Deposito inicial contract detected')
         logger.info('Correct columns!')
         data['ambito_de_aplicacion'] = data.pop('ámbito_de_aplicacion')
@@ -588,11 +650,26 @@ def get_data_contratos(url_prefix):
         data['id'] = data['numero_de_expediente']
         empresas = get_empresas(soup,data['id'],contrato_type)
 
-    elif set(revision_salarial_filter_1) == set(data.keys()):
+    elif find_similarity(set(terminacion),set(data.keys())) > .8:
+        logger.info('Terminacion contract detected')
+        if set(terminacion) <= set(data.keys()):
+            data = {**data,**complete_keys(terminacion,data.keys() )}
+        logger.info('Terminacion contract detected')
+        logger.info('Correct columns!')
+        data['fechas_horas_y_lugares_de_votacion'] = data.pop('fechas,_horas_y_lugares_de_votacion')
+        table = 'metadata.contratos_terminacion'
+        contrato_type = 'contrato terminacion'
+        data['id'] = data['numero_de_expediente']
+        empresas = get_empresas(soup,data['id'],contrato_type)
+
+    elif find_similarity(set(revision_salarial_filter_1) ,set(data.keys())) > .8:
         logger.info('Revision salarial contract detected')
         informacion_general = get_metadata_2(informacion_general_soup,url_prefix)
         tramites_relacionados = get_metadata(tramites_relacionados_soup,url_prefix)
         data = {**tramites_relacionados,**informacion_general}
+        if set(revision_salarial) <= set(data.keys()):
+            data = {**data,**complete_keys(revision_salarial,data.keys() )}
+        revision_salarial
         table = 'metadata.contratos_revision_salarial'
         contrato_type = 'contrato revision_salarial'
         data['id'] = data['folio_del_tramite']
@@ -612,7 +689,15 @@ def get_data_contratos(url_prefix):
     urls = tramites_urls + expedientes_urls
     return data,urls,empresas, table
 
-
+def complete_keys(all_keys,current_keys):
+    missing_keys = all_keys - current_keys
+    missing_dict = {}
+    for key in list(missing_keys):
+        new_missing_dict = {key: 'na'}
+        missing_dict = {**missing_dict, **new_missing_dict}
+    return missing_dict
+def find_similarity(all_keys,missing_keys):
+    return len(all_keys.intersection(missing_keys))/len(all_keys)
 
 
 def get_data_reglamentos(url_prefix):

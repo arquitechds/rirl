@@ -55,12 +55,31 @@ def split_tasks_extract_metadata(table, limit=100,offset=0):
     '''
     # create all tasks
     available_urls = read_table(f'select * from control.{table} limit {limit} offset {offset}')
+    #available_urls = read_table("select * from metadata.contratos_historicos WHERE stamp_created < '2024-06-02'")
     available_urls = list(available_urls['url'])
     processes = [Process(target=extract_metadata, args=(url,)) for url in available_urls[0:limit]]
     tasks = len(available_urls)
     logger.info(f'Created {tasks} tasks')
     return processes
 
+
+def split_tasks_extract_metadata_last_contratos(table):
+    '''
+    Either contract_table is current_contracts or historic_contracts
+    '''
+    # create all tasks
+
+    source_urls = read_table(f"""select url from control.contratos WHERE status = 'archivo_historico'""")
+    metadata_urls = read_table(f'select url from metadata.contratos_historicos')
+    urls = list(set(source_urls['url']) - set(metadata_urls['url']))
+    print(len(urls))
+    metadata_urls = read_table("""select url from metadata.contratos_historicos WHERE stamp_created < '2024-06-17'""")
+    available_urls = urls + list(metadata_urls['url'])
+    print(len(available_urls))
+    processes = [Process(target=extract_metadata, args=(url,)) for url in available_urls]
+    tasks = len(available_urls)
+    logger.info(f'Created {tasks} tasks')
+    return processes
 
 
 

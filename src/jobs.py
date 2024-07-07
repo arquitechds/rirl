@@ -92,37 +92,34 @@ def write_document_to_s3(entry):
             new_entry = [{'file_url' : entry['file_url'],
                             'type': entry['type'],
                             'source': entry['source'],
-                            'numero_de_contrato': entry['numero_de_contrato'],
-                            'numero_de_expediente': entry['numero_de_expediente'],
+                            'file_id': entry['file_id'],
                             'stamp_created': entry['stamp_created'],
                             'url_active' : '1',
                             'in_s3': '1',
                             's3_uri': name,
                             }]
-            insert_data(new_entry,'control.contratos_docs_urls')
+            insert_data(new_entry,'archivos.contratos')
         else:
             new_entry = [{'file_url' : url,
                             'type': entry['type'],
                             'source': entry['source'],
-                            'numero_de_contrato': entry['numero_de_contrato'],
-                            'numero_de_expediente': entry['numero_de_expediente'],
+                            'file_id': entry['file_id'],
                             'stamp_created': entry['stamp_created'],
                             'url_active' : '0',
                             'in_s3': '0',
                             's3_uri': '',
                             }]
-            insert_data(new_entry,'control.contratos_docs_urls')
+            insert_data(new_entry,'archivos.contratos')
             logger.info('File NOT inserted to S3')
     except:
         new_entry = [{'file_url' : url,
                         'type': entry['type'],
                         'source': entry['source'],
-                        'numero_de_contrato': entry['numero_de_contrato'],
-                        'numero_de_expediente': entry['numero_de_expediente'],
+                        'file_id': entry['file_id'],
                         'stamp_created': entry['stamp_created'],
                         'url_active' : '0',
                         'in_s3': '0',
                         's3_uri': '',
                         }]
-        insert_data(new_entry,'control.contratos_docs_urls')
+        insert_data(new_entry,'archivos.contratos')
         logger.info('File NOT inserted to S3')

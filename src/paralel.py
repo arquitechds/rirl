@@ -86,7 +86,7 @@ def split_tasks_extract_metadata_last_contratos(table):
 # pararel for pdfs
 def split_tasks_files_to_s3():
     # create all tasks
-    available_pdfs = read_table('select * from control.contratos_docs_urls')
+    available_pdfs = read_table('select * from archivos.contratos')
     logger.info('PDFs urls obtained from mysql')
     available_pdfs = available_pdfs[available_pdfs['in_s3']=='0']
     available_pdfs = available_pdfs[::-1]
@@ -98,4 +98,4 @@ def split_tasks_files_to_s3():
 
 def contract_files_upload_to_s3_paralel():
     tasks_list = split_tasks_files_to_s3()
-    execute_processes_list_in_batches(tasks_list,1)
+    execute_processes_list_in_batches(tasks_list,8)

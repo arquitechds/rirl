@@ -648,18 +648,9 @@ def get_data_contratos(url_prefix):
         table = 'metadata.contratos_deposito_inicial'
         contrato_type = 'contrato deposito_inicial'
         data['id'] = data['numero_de_expediente']
-        empresas = get_empresas(soup,data['id'],contrato_type)
-
-    elif find_similarity(set(terminacion),set(data.keys())) > .8:
-        logger.info('Terminacion contract detected')
-        if set(terminacion) <= set(data.keys()):
-            data = {**data,**complete_keys(terminacion,data.keys() )}
-        logger.info('Terminacion contract detected')
-        logger.info('Correct columns!')
-        data['fechas_horas_y_lugares_de_votacion'] = data.pop('fechas,_horas_y_lugares_de_votacion')
-        table = 'metadata.contratos_terminacion'
-        contrato_type = 'contrato terminacion'
-        data['id'] = data['numero_de_expediente']
+        if data['id'] == 'No disponible':
+            data['id'] = data['folio_del_tramite']
+        
         empresas = get_empresas(soup,data['id'],contrato_type)
 
     elif find_similarity(set(revision_salarial_filter_1) ,set(data.keys())) > .8:
@@ -675,18 +666,35 @@ def get_data_contratos(url_prefix):
         data['id'] = data['folio_del_tramite']
         empresas = []
 
+    elif find_similarity(set(terminacion),set(data.keys())) > .8:
+        logger.info('Terminacion contract detected')
+        if set(terminacion) <= set(data.keys()):
+            data = {**data,**complete_keys(terminacion,data.keys() )}
+        logger.info('Terminacion contract detected')
+        logger.info('Correct columns!')
+        data['fechas_horas_y_lugares_de_votacion'] = data.pop('fechas,_horas_y_lugares_de_votacion')
+        table = 'metadata.contratos_terminacion'
+        contrato_type = 'contrato terminacion'
+        data['id'] = data['numero_de_expediente']
+        empresas = get_empresas(soup,data['id'],contrato_type)
+
+
 
     else: 
         logger.info('Incorrect columns')
         logger.info(url_prefix)
         data = []
         urls = []
+        empresas = []
         table = None
 
     # extract urls
-    tramites_urls =  get_tramites_urls(tramites_relacionados_soup,data['id'],contrato_type)
-    expedientes_urls = get_expedientes_urls(tramites_relacionados_soup,data['id'],contrato_type)
-    urls = tramites_urls + expedientes_urls
+    try: 
+        tramites_urls =  get_tramites_urls(tramites_relacionados_soup,data['id'],contrato_type)
+        expedientes_urls = get_expedientes_urls(tramites_relacionados_soup,data['id'],contrato_type)
+        urls = tramites_urls + expedientes_urls
+    except:
+        urls = []
     return data,urls,empresas, table
 
 def complete_keys(all_keys,current_keys):

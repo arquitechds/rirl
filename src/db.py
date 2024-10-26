@@ -70,3 +70,12 @@ def send_to_s3(name, content):
     s3.Object('rirl-documents', name).put(Body=content)
     logger.info('inserted file to S3')
 
+def send_to_s3_from_local(name, directory):
+    s3 = boto3.resource(
+        's3',
+        region_name='us-east-2',
+        aws_access_key_id= os.environ["aws_key"],
+        aws_secret_access_key=os.environ["aws_secret"]
+    )
+    s3.Bucket('rirl-documents').upload_file(directory, name)
+    logger.info('inserted file to S3')

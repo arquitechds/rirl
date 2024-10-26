@@ -245,7 +245,7 @@ import shutil
 
 
 @run_twice
-def write_selenium_documents_to_s3(url_prefix,table):
+def write_selenium_documents_to_s3(url_prefix,table, table_archivos):
     ''' 
     Sends document to S3 and uploads control table
     '''
@@ -292,7 +292,8 @@ def write_selenium_documents_to_s3(url_prefix,table):
 
                 send_to_s3_from_local(name,local_name)
                 # send data to control table
-                new_entry = [{'file_url' : entry['file_url'],
+                new_entry = [{  'url_prefix': url_prefix,
+                                'file_url' : entry['file_url'],
                                 'type': entry['type'],
                                 'source': entry['source'],
                                 'file_id': entry['file_id'],
@@ -303,9 +304,10 @@ def write_selenium_documents_to_s3(url_prefix,table):
                                 's3_uri': name,
                                 }]
                 print(new_entry)
-                insert_data(new_entry,f'archivos.{table}')
+                insert_data(new_entry,f'archivos.{table_archivos}')
             else:
-                new_entry = [{'file_url' : url,
+                new_entry = [{'url_prefix': url_prefix,
+                              'file_url' : url,
                                 'type': entry['type'],
                                 'source': entry['source'],
                                 'file_id': entry['file_id'],
@@ -315,7 +317,7 @@ def write_selenium_documents_to_s3(url_prefix,table):
                                 'in_s3': '0',
                                 's3_uri': '',
                                 }]
-                insert_data(new_entry,f'archivos.{table}')
+                insert_data(new_entry,f'archivos.{table_archivos}')
                 logger.info('File NOT inserted to S3')
                 print(new_entry)
                 insert_data(new_entry,f'archivos.{table}')

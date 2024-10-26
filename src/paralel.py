@@ -123,42 +123,16 @@ contract_list = [
     "/contrato/4979", "/contrato/4980", "/contrato/5021", "/contrato/5029",
     "/contrato/5037", "/contrato/5040", "/contrato/5110", "/contrato/5115",
     "/contrato/5139", "/contrato/5215", "/contrato/5264", "/contrato/5268",
-    "/contrato/5286", "/contrato/5293"
-]
+    "/contrato/5286", "/contrato/5293"]
 
-def split_tasks_files_to_s3_selenium(table,limit,offset):
+def split_tasks_files_to_s3_selenium(table, limit, offset,status  = 'archivo_historico', table_archivos = 'contratos_historicos'):
     # create all tasks
-    available_pdfs = read_table(f'select url from control.{table} where status = "vigente" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
+    available_pdfs = read_table(f'select url from control.{table} where status = "{status}" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
     visited_urls = read_table(f'select url from control.visited_')
     visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
     valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
-    processes = [Process(target=write_selenium_documents_to_s3, args=(url,table)) for url in valid_urls]
+    processes = [Process(target=write_selenium_documents_to_s3, args=(url,table,table_archivos)) for url in valid_urls]
     tasks = len(valid_urls)
-    logger.info(f'Created {tasks} tasks')
-    return processes
-
-# to delete
-def split_tasks_files_to_s3_selenium(table,limit,offset):
-    # create all tasks
-    valid_urls = read_table(f'select url from control.visited_contratos_otros')
-    valid_urls['prefix'] = valid_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
-    valid_urls = list(valid_urls['prefix'])
-    processes = [Process(target=write_selenium_documents_to_s3, args=(url,table)) for url in valid_urls]
-    tasks = len(valid_urls)
-    logger.info(f'Created {tasks} tasks')
-    return processes
-# to delete
-
-def split_tasks_files_to_s3_selenium(table,limit,offset):
-    # create all tasks
-    #available_pdfs = read_table(f'select url from control.{table} where status = "vigente" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
-    #visited_urls = read_table(f'select url from control.visited_')
-    #visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
-    #valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
-
-
-    processes = [Process(target=write_selenium_documents_to_s3, args=(url,table)) for url in contract_list]
-    tasks = len(contract_list)
     logger.info(f'Created {tasks} tasks')
     return processes
 
@@ -166,6 +140,6 @@ def contract_files_upload_to_s3_paralel(table,limit,offset):
     tasks_list = split_tasks_files_to_s3(table,limit,offset)
     execute_processes_list_in_batches(tasks_list,8)
 
-def contract_files_upload_to_s3_paralel_selenium(table,limit,offset):
-    tasks_list = split_tasks_files_to_s3_selenium(table,limit,offset)
-    execute_processes_list_in_batches(tasks_list,10)
+def contract_files_upload_to_s3_paralel_selenium(table,limit,offset,status, table_archivos):
+    tasks_list = split_tasks_files_to_s3_selenium(table,limit,offset,status, table_archivos)
+    execute_processes_list_in_batches(tasks_list,1)

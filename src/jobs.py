@@ -289,6 +289,7 @@ def write_selenium_documents_to_s3(url_prefix,table, table_archivos):
                 file_name = url.rsplit('/', 1)[-1]
                 name = 'contratos/' + corrected_type + '/' + corrected_file_id + '/'+ corrected_subtype + '/' + document_name
                 local_name = download_dir+ '/' + document_name 
+                size = os.path.getsize(local_name)/ (1024 ** 2)                                
 
                 send_to_s3_from_local(name,local_name)
                 # send data to control table
@@ -302,6 +303,7 @@ def write_selenium_documents_to_s3(url_prefix,table, table_archivos):
                                 'url_active' : '1',
                                 'in_s3': '1',
                                 's3_uri': name,
+                                'size_mb': size
                                 }]
                 print(new_entry)
                 insert_data(new_entry,f'archivos.{table_archivos}')
@@ -316,6 +318,7 @@ def write_selenium_documents_to_s3(url_prefix,table, table_archivos):
                                 'url_active' : '0',
                                 'in_s3': '0',
                                 's3_uri': '',
+                                'size_mb': 0
                                 }]
                 insert_data(new_entry,f'archivos.{table_archivos}')
                 logger.info('File NOT inserted to S3')

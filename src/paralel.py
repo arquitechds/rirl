@@ -127,7 +127,11 @@ contract_list = [
 
 def split_tasks_files_to_s3_selenium(table, limit, offset,status  = 'archivo_historico', table_archivos = 'contratos_historicos'):
     # create all tasks
-    available_pdfs = read_table(f'select url from control.{table} where status = "{status}" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
+    is_imss = read_table(f'select numero_de_registro from control.contratos_historicos_imss where imss = "1"')
+    is_imss = list(is_imss['numero_de_registro'].unique())
+    available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
+    available_pdfs = available_pdfs[available_pdfs['numero_registro'].isin(is_imss)]
+    
     visited_urls = read_table(f'select url from control.visited_')
     visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
     valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
@@ -143,4 +147,4 @@ def contract_files_upload_to_s3_paralel(table,limit,offset):
 
 def contract_files_upload_to_s3_paralel_selenium(table,limit,offset,status, table_archivos):
     tasks_list = split_tasks_files_to_s3_selenium(table,limit,offset,status, table_archivos)
-    execute_processes_list_in_batches(tasks_list,8)
+    execute_processes_list_in_batches(tasks_list,16)

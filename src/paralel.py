@@ -129,7 +129,7 @@ def split_tasks_files_to_s3_selenium(table, limit, offset,status  = 'archivo_his
     # create all tasks
     is_imss = read_table(f'select numero_de_registro from control.contratos_historicos_imss where imss = "1"')
     is_imss = list(is_imss['numero_de_registro'].unique())
-    available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}" limit {limit} offset {offset}').sample(n=50000, replace=True, random_state=1)
+    available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}" limit {limit} offset {offset}')
     available_pdfs = available_pdfs[available_pdfs['numero_registro'].isin(is_imss)]
     
     visited_urls = read_table(f'select url from control.visited_')

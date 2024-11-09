@@ -332,6 +332,11 @@ def write_selenium_documents_to_s3(url_prefix,table, table_archivos):
         shutil.rmtree(download_dir)
     except:
         logger.info('Error')
+        try:
+            shutil.rmtree(download_dir)
+        except:
+            pass
+
 
 def create_control_dict_specific(url_original, local_document_names, entries, ctype):
     ctype = ctype.replace('metadata.','')

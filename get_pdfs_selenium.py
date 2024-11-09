@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 from src.paralel import *
 from src.extract import *
 # Update data from first 300 pages for all categories

@@ -147,4 +147,4 @@ def contract_files_upload_to_s3_paralel(table,limit,offset):
 
 def contract_files_upload_to_s3_paralel_selenium(table,limit,offset,status, table_archivos):
     tasks_list = split_tasks_files_to_s3_selenium(table,limit,offset,status, table_archivos)
-    execute_processes_list_in_batches(tasks_list,16)
+    execute_processes_list_in_batches(tasks_list,24)

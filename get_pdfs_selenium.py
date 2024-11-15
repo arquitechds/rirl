@@ -12,5 +12,9 @@ import sys
 
 
 
-for i in tqdm(range(10,100)):
+for i in tqdm(range(64,100)):
     contract_files_upload_to_s3_paralel_selenium('contratos',limit = 5000, offset = 5000*i,status  = 'archivo_historico', table_archivos = 'contratos_historicos')
+
+# ya comence en 0 y en 10
+
+#50 al 64 cubierto

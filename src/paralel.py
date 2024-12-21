@@ -140,6 +140,20 @@ def split_tasks_files_to_s3_selenium(table, limit, offset,status  = 'archivo_his
     logger.info(f'Created {tasks} tasks')
     return processes
 
+def split_tasks_files_to_s3_selenium_missing(table,status  = 'archivo_historico', table_archivos = 'contratos_historicos'):
+    # create all tasks
+    is_imss = read_table(f'select numero_de_registro from control.contratos_historicos_imss where imss = "1"')
+    is_imss = list(is_imss['numero_de_registro'].unique())
+    available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}"')
+    available_pdfs = available_pdfs[available_pdfs['numero_registro'].isin(is_imss)]
+    visited_urls = read_table(f'select url from control.visited_')
+    visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
+    valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
+    processes = [Process(target=write_selenium_documents_to_s3, args=(url,table,table_archivos)) for url in valid_urls]
+    tasks = len(valid_urls)
+    logger.info(f'Created {tasks} tasks')
+    return processes
+
 
 def contract_files_upload_to_s3_paralel(table,limit,offset):
     tasks_list = split_tasks_files_to_s3(table,limit,offset)
@@ -147,4 +161,8 @@ def contract_files_upload_to_s3_paralel(table,limit,offset):
 
 def contract_files_upload_to_s3_paralel_selenium(table,limit,offset,status, table_archivos):
     tasks_list = split_tasks_files_to_s3_selenium(table,limit,offset,status, table_archivos)
+    execute_processes_list_in_batches(tasks_list,32)
+
+def contract_files_upload_to_s3_paralel_selenium_missing(table,status, table_archivos):
+    tasks_list = split_tasks_files_to_s3_selenium_missing(table,status, table_archivos)
     execute_processes_list_in_batches(tasks_list,32)

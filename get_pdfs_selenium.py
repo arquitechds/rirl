@@ -12,12 +12,8 @@ import sys
 
 
 
-for i in tqdm(range(100,112)):
-    contract_files_upload_to_s3_paralel_selenium('contratos',limit = 5000, offset = 5000*i,status  = 'archivo_historico', table_archivos = 'contratos_historicos')
+#for i in tqdm(range(100,112)):
+#    contract_files_upload_to_s3_paralel_selenium('contratos',limit = 5000, offset = 5000*i,status  = 'archivo_historico', table_archivos = 'contratos_historicos')
 
-# ya comence en 0 y en 10
+contract_files_upload_to_s3_paralel_selenium_missing('contratos',status  = 'archivo_historico', table_archivos = 'contratos_historicos')
 
-# 25 al 37 cubierto
-#50 al 64 cubierto
-#64 al 75 cubierto
-# 75 al 90 cubierto

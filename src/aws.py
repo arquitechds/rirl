@@ -164,7 +164,7 @@ def read_json_local(file):
 load_dotenv()
 
 class S3Handler():
-    def __init__(self, working_bucket:str = 'raw-tukanmx'):
+    def __init__(self, working_bucket:str = 'rirl-documents'):
         self.aws_access = os.getenv('AWS_ACCESS')
         self.aws_secret = os.getenv('AWS_SECRET')
         self.working_bucket = working_bucket
@@ -178,7 +178,7 @@ class S3Handler():
                             aws_secret_access_key=self.aws_secret)
         
     def create_boto_session(self):
-        return boto3.Session(region_name="us-east-1",
+        return boto3.Session(region_name="us-east-2",
                             aws_access_key_id=self.aws_access,
                             aws_secret_access_key=self.aws_secret)
 
@@ -909,24 +909,24 @@ class TextractHandler(S3Handler):
                             region_name='us-east-2')
 
     @timeout(600)
-    def complete_textract(self, s3_id: str, overwrite: bool= False) -> List:
+    def complete_textract(self, s3_uri: str, overwrite: bool = False) -> List:
         """
         """
-        pickle_id = s3_id.rsplit('.')[0] + '.pickle'
+        pickle_id = s3_uri.rsplit('.')[0] + '.pickle'
 
         if self.does_object_exist(pickle_id) and not overwrite:
             return self.get_pickle(pickle_id)
         else:
-            return self.run_new_job(s3_id, overwrite)
+            return self.run_new_job(s3_uri, overwrite)
 
-    def get_pickle(self, s3_id: str) -> List:
+    def get_pickle(self, s3_uri: str) -> List:
         """
-        looks for filename.picke and returns it if found
+        looks for filename.pickle and returns it if found
 
         out: list with pickle if found or empty list
         """
-        s3_folder = s3_id.rsplit('/', 1)[0]
-        s3_id_pickle = s3_id.rsplit('.')[0] + '.pickle'
+        s3_folder = s3_uri.rsplit('/', 1)[0]
+        s3_id_pickle = s3_uri.rsplit('.')[0] + '.pickle'
         pickle_filename = s3_id_pickle.rsplit('/', 1)[1]
 
         ans = []
@@ -937,72 +937,64 @@ class TextractHandler(S3Handler):
 
         return ans
 
-    def run_new_job(self, s3_id: str, overwrite: bool = False) -> pd.DataFrame:
-
-        job_id = self.start_analysis_job(s3_id)
+    def run_new_job(self, s3_uri: str, overwrite: bool = False) -> pd.DataFrame:
+        job_id = self.start_analysis_job(s3_uri)
 
         state = 'False'
         while state != 'SUCCEEDED':
             time.sleep(7.5)
             state = self.get_analysis_job(job_id)['JobStatus']
         dfs = self.read_dfs_with_id(job_id)
-        self.upload_pickle(dfs, s3_id, overwrite)
+        self.upload_pickle(dfs, s3_uri, overwrite)
 
         return dfs
 
-    def start_analysis_job(self, s3_id: str, feature_types: List = ['TABLES']
-                           ) -> str:
+    def start_analysis_job(self, s3_uri: str, feature_types: List = ['TABLES']) -> str:
         """
         Starts an asynchronous job to detect text and additional elements, such
         as forms or tables, in an image stored in an Amazon S3 bucket. Textract
         publishes a notification to the specified Amazon SNS topic when the job
         completes. The image must be in PNG, JPG, or PDF format.
 
-        :param s3_id: S3 URI of the pdf to analize, we use it to get the
-            bucket_name and document_file_name.
+        :param s3_uri: S3 URI of the document to analyze.
         :param feature_types: The types of additional document features to
             detect.
-        :param sns_topic_arn: The Amazon Resource Name (ARN) of an Amazon SNS
-            topic where job completion notification is published.
-        :param sns_role_arn: The ARN of an AWS Identity and Access Management
-            (IAM) role that can be assumed by Textract and grants permission to
-            publish to the Amazon SNS topic.
         :return: The ID of the job.
         """
-        bucket_name = s3_id.split('//')[1].split('/')[0]
-        document_file_name = s3_id.split('//')[1].split('/', 1)[1]
+        bucket_name = s3_uri.split('//')[1].split('/')[0]
+        document_file_name = s3_uri.split('//')[1].split('/', 1)[1]
 
         try:
             response = self.boto_client.start_document_analysis(
-                DocumentLocation={'S3Object': {'Bucket': bucket_name,
-                                               'Name': document_file_name}},
+                DocumentLocation={'S3Object': {'Bucket': bucket_name, 'Name': document_file_name}},
                 FeatureTypes=feature_types
-                )
+            )
             job_id = response['JobId']
-            logger.info(
-                f'Started text analysis job {job_id} on {document_file_name}.'
-                )
-        except Exception as e:
-            logger.exception("Couldn't analyze text in {document_file_name}.")
-            raise
-        else:
+            logger.info(f'Started text analysis job {job_id} on {document_file_name}.')
             return job_id
+        except Exception as e:
+            logger.exception(f"Couldn't analyze text in {document_file_name}: {e}")
+            raise
 
     def get_analysis_job(self, job_id: str, NextToken: str = None) -> Dict:
         """
-            :param bucket_name: the name of the amazon s3 bucket that contains
-                the image.
+        Fetches the status or results of a Textract analysis job.
 
-            :return: the id of the job.
+        :param job_id: The ID of the analysis job.
+        :param NextToken: Pagination token for Textract results.
+        :return: Response from Textract containing job analysis details.
         """
-        if not NextToken:
-            response = self.boto_client.get_document_analysis(JobId=job_id)
-        else:
-            response = self.boto_client.get_document_analysis(
-                JobId=job_id, NextToken=NextToken
-                )
-        logger.info(f'trying to get text analysis job {job_id}')
-        return response
+        try:
+            if not NextToken:
+                response = self.boto_client.get_document_analysis(JobId=job_id)
+            else:
+                response = self.boto_client.get_document_analysis(JobId=job_id, NextToken=NextToken)
+
+            logger.info(f'Trying to get text analysis job {job_id}')
+            return response
+        except Exception as e:
+            logger.error(f"Error fetching analysis job {job_id}: {e}")
+            raise
 
     def read_dfs_with_id(self, job_id: str) -> pd.DataFrame:
         blocks = self.get_complete_analysis_job(job_id)
@@ -1010,10 +1002,10 @@ class TextractHandler(S3Handler):
 
     def get_complete_analysis_job(self, job_id: str) -> List:
         """
-            :param bucket_name: the name of the amazon s3 bucket that contains
-                the image.
+        Fetches all blocks of data for a completed Textract analysis job.
 
-            :return: list of response blocks
+        :param job_id: The ID of the analysis job.
+        :return: List of response blocks.
         """
         blocks = []
         NextToken = None
@@ -1025,12 +1017,10 @@ class TextractHandler(S3Handler):
             next_token = 'NextToken' in response
             if next_token:
                 NextToken = response['NextToken']
-        # To flatten the list of list into a list
         blocks = list(chain.from_iterable(blocks))
         return blocks
 
     def parse_blocks(self, blocks: List) -> List[pd.DataFrame]:
-
         tables = map_blocks(blocks, 'TABLE')
         cells = map_blocks(blocks, 'CELL')
         words = map_blocks(blocks, 'WORD')
@@ -1039,18 +1029,14 @@ class TextractHandler(S3Handler):
         dataframes = []
 
         for table in tables.values():
-
-            # Determine all the cells that belong to this table
             table_cells = [
                 cells[cell_id] for cell_id in get_children_ids(table)
             ]
 
-            # Determine the table's number of rows and columns
             n_rows = max(cell['RowIndex'] for cell in table_cells)
             n_cols = max(cell['ColumnIndex'] for cell in table_cells)
             content = [[None for _ in range(n_cols)] for _ in range(n_rows)]
 
-            # Fill in each cell
             for cell in table_cells:
                 cell_contents = [
                     words[child_id]['Text'] if child_id in words else
@@ -1061,22 +1047,56 @@ class TextractHandler(S3Handler):
                 j = cell['ColumnIndex'] - 1
                 content[i][j] = ' '.join(cell_contents)
 
-            # We assume that the first row corresponds to the column names
             dataframe = pd.DataFrame(content[1:], columns=content[0])
             dataframes.append(dataframe)
 
         return dataframes
 
-    def upload_pickle(self, dfs: pd.DataFrame, s3_id: str, overwrite: bool = False) -> None:
-        filename = s3_id.rsplit('/', 1)[1]
+    def upload_pickle(self, dfs: pd.DataFrame, s3_uri: str, overwrite: bool = False) -> None:
+        filename = s3_uri.rsplit('/', 1)[1]
         pickle_filename = filename.rsplit('.', 1)[0] + '.pickle'
-        pickle_s3_id = s3_id.rsplit('.', 1)[0] + '.pickle'
+        pickle_s3_id = s3_uri.rsplit('.', 1)[0] + '.pickle'
 
         with open(f'{pickle_filename}', 'wb') as f:
             pickle.dump(dfs, f)
 
         self.write_any_file_to_s3(pickle_s3_id, pickle_filename, overwrite)
         os.remove(pickle_filename)
+
+    def extract_raw_text(self, s3_uri: str, overwrite: bool = False) -> str:
+        """
+        Extracts all raw text from the Textract response, utilizing a pickle cache if available.
+
+        :param s3_uri: The S3 URI of the document to analyze.
+        :param overwrite: Whether to overwrite the cached pickle.
+        :return: A string containing all extracted raw text.
+        """
+        pickle_id = s3_uri.rsplit('.')[0] + '_raw_text.pickle'
+
+        # Check for existing pickle
+        if self.does_object_exist(pickle_id) and not overwrite:
+            return self.get_pickle(pickle_id)
+
+        # If no pickle exists, run the job
+        job_id = self.start_analysis_job(s3_uri, feature_types=['TABLES', 'FORMS'])
+
+        state = 'False'
+        while state != 'SUCCEEDED':
+            time.sleep(7.5)
+            state = self.get_analysis_job(job_id)['JobStatus']
+
+        blocks = self.get_complete_analysis_job(job_id)
+        words = map_blocks(blocks, 'WORD')
+
+        # Extract and save raw text
+        raw_text = ' '.join(word['Text'] for word in words.values())
+        with open(pickle_id.rsplit('/', 1)[1], 'wb') as f:
+            pickle.dump(raw_text, f)
+
+        self.write_any_file_to_s3(pickle_id, pickle_id.rsplit('/', 1)[1], overwrite)
+        os.remove(pickle_id.rsplit('/', 1)[1])
+
+        return raw_text
 
 def map_blocks(blocks, block_type):
     return {

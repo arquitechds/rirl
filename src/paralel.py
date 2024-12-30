@@ -127,14 +127,16 @@ contract_list = [
 
 def split_tasks_files_to_s3_selenium(table, limit, offset,status  = 'archivo_historico', table_archivos = 'contratos_historicos'):
     # create all tasks
-    is_imss = read_table(f'select numero_de_registro from control.contratos_historicos_imss where imss = "1"')
-    is_imss = list(is_imss['numero_de_registro'].unique())
-    available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}" limit {limit} offset {offset}')
-    available_pdfs = available_pdfs[available_pdfs['numero_registro'].isin(is_imss)]
-    
-    visited_urls = read_table(f'select url from control.visited_')
-    visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
-    valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
+    #available_pdfs = read_table(f'select url,numero_registro from control.contratos where status = "{status}" limit {limit} offset {offset}')
+    available_pdfs = read_table(f'select url,numero_registro from control.contratos where status = "{status}"')
+    is_vigente = read_table(f'select url from control.visited_contratos_deposito_inicial' )
+    is_vigente['url'] = is_vigente['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
+    available_pdfs = available_pdfs[available_pdfs['url'].isin(is_vigente['url'])]
+
+    #visited_urls = read_table(f'select url from control.visited_')
+    #visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
+    #valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
+    valid_urls =  set(available_pdfs['url'])
     processes = [Process(target=write_selenium_documents_to_s3, args=(url,table,table_archivos)) for url in valid_urls]
     tasks = len(valid_urls)
     logger.info(f'Created {tasks} tasks')
@@ -146,7 +148,7 @@ def split_tasks_files_to_s3_selenium_missing(table,status  = 'archivo_historico'
     is_imss = list(is_imss['numero_de_registro'].unique())
     available_pdfs = read_table(f'select url,numero_registro from control.{table} where status = "{status}"')
     available_pdfs = available_pdfs[available_pdfs['numero_registro'].isin(is_imss)]
-    visited_urls = read_table(f'select url from control.visited_')
+    visited_urls = read_table(f'select url from control.visited_historicos')
     visited_urls['prefix'] = visited_urls['url'].str.replace('https://repositorio.centrolaboral.gob.mx','')
     valid_urls = set(available_pdfs['url']) - set(visited_urls['prefix'])
     processes = [Process(target=write_selenium_documents_to_s3, args=(url,table,table_archivos)) for url in valid_urls]
